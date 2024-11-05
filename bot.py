@@ -107,17 +107,18 @@ class IceFarm:
                         f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
                         f"{Fore.MAGENTA + Style.BRIGHT}] [{Style.RESET_ALL}"
                         f"{Fore.GREEN + Style.BRIGHT} Successfully Generated Token {Style.RESET_ALL}"
-                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                           "
+                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                     "
                     )
                     accounts.insert(idx, {"first_name": account_name, "token": token})
                 else:
                     self.log(
                         f"{Fore.MAGENTA + Style.BRIGHT}[ Account{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
-                        f"{Fore.YELLOW + Style.BRIGHT}Query Is Expired{Style.RESET_ALL}"
-                        f"{Fore.MAGENTA + Style.BRIGHT} ] [{Style.RESET_ALL}"
+                        f"{Fore.MAGENTA + Style.BRIGHT}] [{Style.RESET_ALL}"
                         f"{Fore.RED + Style.BRIGHT} Failed to Generate Token {Style.RESET_ALL}"
-                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                           "
+                        f"{Fore.MAGENTA + Style.BRIGHT}] [ Reason{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} Query ID Is May Expired {Style.RESET_ALL}"
+                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
                     )
 
                 time.sleep(1)
@@ -145,7 +146,6 @@ class IceFarm:
                     f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}",
                     end="\r", flush=True
                 )
-                self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
                 time.sleep(1)
                 
                 accounts = [acc for acc in accounts if acc["first_name"] != account_name]
@@ -158,19 +158,19 @@ class IceFarm:
                         self.log(
                             f"{Fore.MAGENTA + Style.BRIGHT}[ Account{Style.RESET_ALL}"
                             f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
-                            f"{Fore.GREEN + Style.BRIGHT}Query Is Valid{Style.RESET_ALL}"
-                            f"{Fore.MAGENTA + Style.BRIGHT} ] [{Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT}] [{Style.RESET_ALL}"
                             f"{Fore.GREEN + Style.BRIGHT} Successfully Generated Token {Style.RESET_ALL}"
-                            f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                           "
+                            f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                      "
                         )
                     else:
                         self.log(
                             f"{Fore.MAGENTA + Style.BRIGHT}[ Account{Style.RESET_ALL}"
                             f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
-                            f"{Fore.YELLOW + Style.BRIGHT}Query Is Expired{Style.RESET_ALL}"
-                            f"{Fore.MAGENTA + Style.BRIGHT} ] [{Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT}] [{Style.RESET_ALL}"
                             f"{Fore.RED + Style.BRIGHT} Failed to Generate Token {Style.RESET_ALL}"
-                            f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                           "
+                            f"{Fore.MAGENTA + Style.BRIGHT}] [ Reason{Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT} Query ID Is May Expired {Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
                         )
                 else:
                     self.log(
@@ -178,7 +178,7 @@ class IceFarm:
                         f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
                         f"{Fore.MAGENTA + Style.BRIGHT}] [{Style.RESET_ALL}"
                         f"{Fore.YELLOW + Style.BRIGHT} Query Is None. Skipping {Style.RESET_ALL}"
-                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                           "
+                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}                       "
                     )
 
                 time.sleep(1)
@@ -206,6 +206,19 @@ class IceFarm:
         else:
             return None
         
+    def complete_onboarding(self, token: str):
+        url = 'https://hockey-tap.laborx.io/users/onboarding/complete'
+        self.headers.update({
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        })
+
+        response = self.session.post(url, headers=self.headers)
+        if response.status_code == 204:
+            return True
+        else:
+            return False
+        
     def user_balance(self, token: str):
         url = 'https://hockey-tap.laborx.io/balance'
         self.headers.update({
@@ -222,6 +235,19 @@ class IceFarm:
                 return None
         else:
             return None
+        
+    def claim_refferal(self, token: str):
+        url = 'https://hockey-tap.laborx.io/balance/referral/claim'
+        self.headers.update({
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        })
+
+        response = self.session.post(url, headers=self.headers)
+        if response.status_code == 204:
+            return True
+        else:
+            return False
         
     def game_spin(self, token: str):
         url = 'https://hockey-tap.laborx.io/game/spin'
@@ -310,7 +336,6 @@ class IceFarm:
         
     def process_query(self, query: str, game_upgrade: bool, attributes: list):
         account_name = self.extract_user_data(query)
-    
         tokens_data = self.load_tokens()
         accounts = tokens_data.get("accounts", [])
 
@@ -327,25 +352,77 @@ class IceFarm:
         if exist_account and "token" in exist_account:
             token = exist_account["token"]
 
-            user = self.user_balance(token)
+            user = self.user_auth(query)
             if not user:
-                self.renew_token(account_name)
-                tokens_data = self.load_tokens()
-                new_account = next((acc for acc in tokens_data["accounts"] if acc["first_name"] == account_name), None)
-                
-                if new_account and "token" in new_account:
-                    new_token = new_account["token"] 
-                    user = self.user_balance(new_token)
-
-            if user:
                 self.log(
                     f"{Fore.MAGENTA + Style.BRIGHT}[ Account{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA + Style.BRIGHT}] [ Balance{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} {user['balance']} {Style.RESET_ALL}"
+                    f"{Fore.RED + Style.BRIGHT}Token Is None{Style.RESET_ALL}"
+                    f"{Fore.MAGENTA + Style.BRIGHT}] [ Reason{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} Query ID Is May Expired {Style.RESET_ALL}"
                     f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
                 )
-                time.sleep(1)
+                return
+            
+            if user:
+                onboarding = user['user']['onboardingCompleted']
+                if not onboarding:
+                    time.sleep(2)
+                    complete = self.complete_onboarding(token)
+                    if complete:
+                        self.log(
+                            f"{Fore.MAGENTA + Style.BRIGHT}[ Onboarding{Style.RESET_ALL}"
+                            f"{Fore.GREEN + Style.BRIGHT} Is Completed {Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
+                        )
+                        time.sleep(2)
+
+                    user = self.user_auth(query)
+
+                balance = self.user_balance(token)
+                if not balance:
+                    self.renew_token(account_name)
+                    tokens_data = self.load_tokens()
+                    new_account = next((acc for acc in tokens_data["accounts"] if acc["first_name"] == account_name), None)
+                    
+                    if new_account and "token" in new_account:
+                        new_token = new_account["token"] 
+                        balance = self.user_balance(new_token)
+                
+                if balance:
+                    self.log(
+                        f"{Fore.MAGENTA + Style.BRIGHT}[ Account{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} {account_name} {Style.RESET_ALL}"
+                        f"{Fore.MAGENTA + Style.BRIGHT}] [ Balance{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} {balance['balance']} $ICE {Style.RESET_ALL}"
+                        f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
+                    )
+                    time.sleep(1.5)
+
+                    reff_balance = balance['referral']['availableBalance']
+                    if reff_balance > 0:
+                        claim = self.claim_refferal(new_token if 'new_token' in locals() else token)
+                        if claim:
+                            self.log(
+                                f"{Fore.MAGENTA + Style.BRIGHT}[ Refferal{Style.RESET_ALL}"
+                                f"{Fore.GREEN + Style.BRIGHT} Is Claimed {Style.RESET_ALL}"
+                                f"{Fore.MAGENTA + Style.BRIGHT}] [ Reward{Style.RESET_ALL}"
+                                f"{Fore.WHITE + Style.BRIGHT} {reff_balance} $ICE {Style.RESET_ALL}"
+                                f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
+                            )
+                        else:
+                            self.log(
+                                f"{Fore.MAGENTA + Style.BRIGHT}[ Refferal{Style.RESET_ALL}"
+                                f"{Fore.RED + Style.BRIGHT} Isn't Claimed {Style.RESET_ALL}"
+                                f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
+                            )
+                    else:
+                        self.log(
+                            f"{Fore.MAGENTA + Style.BRIGHT}[ Refferal{Style.RESET_ALL}"
+                            f"{Fore.YELLOW + Style.BRIGHT} No Reward to Claim {Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
+                        )
+                    time.sleep(1.5)
 
                 spin = self.game_spin(new_token if 'new_token' in locals() else token)
                 if spin:
@@ -359,7 +436,7 @@ class IceFarm:
                         f"{Fore.WHITE + Style.BRIGHT} {spin_count} Left {Style.RESET_ALL}"
                         f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
                     )
-                    time.sleep(1)
+                    time.sleep(1.5)
 
                     spin_count = self.user_auth(query)['user']['lastSpinCount']
                     if spin_count > 0:
@@ -410,7 +487,7 @@ class IceFarm:
                         f"{Fore.WHITE + Style.BRIGHT} No Chance Left {Style.RESET_ALL}"
                         f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
                     )
-                time.sleep(1)
+                time.sleep(1.5)
 
                 shot = self.game_shot(new_token if 'new_token' in locals() else token)
                 if shot:
@@ -488,7 +565,7 @@ class IceFarm:
                         f"{Fore.WHITE + Style.BRIGHT} No Chance Left {Style.RESET_ALL}"
                         f"{Fore.MAGENTA + Style.BRIGHT}]{Style.RESET_ALL}"
                     )
-                time.sleep(1)
+                time.sleep(1.5)
 
                 attribute_map = {
                     'stamina': 'staminaValue',
@@ -528,10 +605,9 @@ class IceFarm:
                     )
                 
     def main(self):
-        self.clear_terminal()
         try:
-            queries = self.load_queries()
-            self.generate_tokens(queries)
+            with open('query.txt', 'r') as file:
+                queries = [line.strip() for line in file if line.strip()]
 
             game_upgrade, attributes = self.question()
 
@@ -545,6 +621,7 @@ class IceFarm:
                 self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
 
                 for query in queries:
+                    query = query.strip()
                     if query:
                         self.process_query(query, game_upgrade, attributes)
                         self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
