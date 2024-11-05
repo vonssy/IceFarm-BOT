@@ -605,9 +605,10 @@ class IceFarm:
                     )
                 
     def main(self):
+        self.clear_terminal()
         try:
-            with open('query.txt', 'r') as file:
-                queries = [line.strip() for line in file if line.strip()]
+            queries = self.load_queries()
+            self.generate_tokens(queries)
 
             game_upgrade, attributes = self.question()
 
@@ -621,7 +622,6 @@ class IceFarm:
                 self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
 
                 for query in queries:
-                    query = query.strip()
                     if query:
                         self.process_query(query, game_upgrade, attributes)
                         self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
