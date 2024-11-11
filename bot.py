@@ -311,7 +311,7 @@ class IceFarm:
                 print(f"{Fore.RED+Style.BRIGHT}Invalid Input.{Fore.WHITE+Style.BRIGHT} Choose 'y' to Yes or 'n' to Skip.{Style.RESET_ALL}")
 
         attributes = []
-        attributes_list = ['stamina', 'accuracy', 'regeneration', 'strength']
+        attributes_list = ['stamina', 'accuracy', 'intellect', 'strength']
         if game_upgrade:
             while True:
                 print("Select The Attributes to Upgrade [ex: 1,3,4]")
@@ -570,7 +570,7 @@ class IceFarm:
                 attribute_map = {
                     'stamina': 'staminaValue',
                     'accuracy': 'accuracyValue',
-                    'regeneration': 'intellectValue',
+                    'intellect': 'intellectValue',
                     'strength': 'strengthValue'
                 }
 
